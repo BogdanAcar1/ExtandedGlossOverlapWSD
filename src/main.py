@@ -16,15 +16,15 @@ def print_wn_sense(word):
 		print("-" * 50)
 
 def test_sense(word):
-	print_wn_sense("card")
+	print_wn_sense(word)
 
-	target = "card"
+	target = word
 	for test in tests[target]:
-		print(test, f"-> sense of {target}: ",  get_sense(target, process_gloss(test)))
+		print(test, f"-> sense of {target}: ",  get_sense(target, process_text(test)))
 
 def get_senseval_contexts(word, n = 10):
 	contexts = []
-	for instance in senseval.instances(f'{word}.pos')[:n]:			
+	for instance in senseval.instances(f'{word}.pos')[:n]:
 		try:
 			contexts.append(([word for (word, pos) in instance.context], instance.senses))
 		except:
@@ -32,9 +32,4 @@ def get_senseval_contexts(word, n = 10):
 	return contexts
 
 if __name__ == '__main__':
-	target = "line"
-	for context, senses in get_senseval_contexts(target, 10):
-		print("context: ", " ".join(context))
-		print("predicted sense: ", get_sense(target, context))
-		print("true sense: ", senses)
-		print("-" * 50)
+	test_sense("mole")
