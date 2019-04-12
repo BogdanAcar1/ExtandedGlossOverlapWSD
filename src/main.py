@@ -29,7 +29,7 @@ def get_senseval_contexts(word, n = 10):
 	return contexts
 
 if __name__ == '__main__':
-	test_sense("fly")
+	test_sense("line")
 	# target = "row"
 	# print_wn_sense(target)
 	# contexts = ["Cristi deleted a row in the matching table",

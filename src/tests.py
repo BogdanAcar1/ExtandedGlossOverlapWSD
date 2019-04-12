@@ -2,6 +2,7 @@ tests = {}
 tests["fly"] = ["The fly is such an annoying insect.",
 	 			"I will fly there by plane and be back on Monday."]
 tests["line"] = ["I'm waiting in line at the cinema.",
+				 "The call center operator told me to hold the line.",
 	  			 "The athlete was the first to cross the finish line.",
 	  			 "Between two points you can draw a line and only one.",
 	  			 "The line of descendents went extinct.",

@@ -14,7 +14,7 @@ MERO = "meronymy"  #Y is a meronym of X if Y is a part of X (window is a meronym
 GLOSS = "gloss"    #xA's gloss is A's definition
 EXAMPLE = "example"
 
-relpairs = [(GLOSS, GLOSS), (HYPE, HYPE), (HYPO, HYPO), (HYPE, GLOSS), (GLOSS, HYPE)]
+relpairs = [(GLOSS, GLOSS), (EXAMPLE, EXAMPLE), (HYPE, HYPE), (HYPO, HYPO), (HYPE, GLOSS), (GLOSS, HYPE)]
 
 def tagger_to_wn_pos(pos):
 	if pos.find('VB') > -1:
@@ -56,8 +56,9 @@ def get_extended_gloss(synset, relation):
 		synsets = synset.member_meronyms() + synset.part_meronyms() + synset.substance_meronyms()
 	elif relation == GLOSS:
 		synsets = [synset]
-	#elif relation == EXAMPLE:
-	#	synsets = synset.examples()
+	elif relation == EXAMPLE:
+		#print(synset.examples())
+		return process_text(" ".join(synset.examples()))
 
 	return process_text(" ".join([s.definition() for s in synsets]))
 
