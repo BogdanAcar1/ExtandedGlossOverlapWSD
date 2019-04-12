@@ -1,12 +1,9 @@
 from nltk.corpus import wordnet as wn
-from nltk.tag import StanfordPOSTagger
 from ego import *
 from process import *
 from tests import tests
 from nltk.corpus import senseval
-
-postagger = StanfordPOSTagger("stanford-postagger-2018-10-16/models/english-bidirectional-distsim.tagger",
-							  "stanford-postagger-2018-10-16/stanford-postagger-3.9.2.jar" )
+import wikipedia as wp
 
 def print_wn_sense(word):
 	print(f"Wordnet defintions of {word}:")
@@ -20,7 +17,7 @@ def test_sense(word):
 
 	target = word
 	for test in tests[target]:
-		print(test, f"-> sense of {target}: ",  get_sense(target, process_text(test)))
+		print(test, f"-> sense of {target}: ",  get_sense2(target, test))
 
 def get_senseval_contexts(word, n = 10):
 	contexts = []
@@ -32,4 +29,10 @@ def get_senseval_contexts(word, n = 10):
 	return contexts
 
 if __name__ == '__main__':
-	test_sense("mole")
+	test_sense("fly")
+	# target = "row"
+	# print_wn_sense(target)
+	# contexts = ["Cristi deleted a row in the matching table",
+	# 			"The rowers row to keep the ship at constant speed"]
+	# for context in contexts:
+	# 	print(get_sense(target, process_text(context)))

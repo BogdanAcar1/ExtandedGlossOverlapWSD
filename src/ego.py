@@ -1,6 +1,11 @@
 import difflib as dl
 from nltk.corpus import wordnet as wn
 from process import *
+from nltk import word_tokenize
+from nltk.tag import StanfordPOSTagger
+
+postagger = StanfordPOSTagger("stanford-postagger-2018-10-16/models/english-bidirectional-distsim.tagger",
+"stanford-postagger-2018-10-16/stanford-postagger-3.9.2.jar" )
 
 HYPE = "hypernymy" #Y is a hypernym of X if every X is a (kind of) Y (canine is a hypernym of dog)
 HYPO = "hyponymy"  #Y is a hyponym of X if every Y is a (kind of) X (dog is a hyponym of canine)
@@ -10,6 +15,17 @@ GLOSS = "gloss"    #xA's gloss is A's definition
 EXAMPLE = "example"
 
 relpairs = [(GLOSS, GLOSS), (HYPE, HYPE), (HYPO, HYPO), (HYPE, GLOSS), (GLOSS, HYPE)]
+
+def tagger_to_wn_pos(pos):
+	if pos.find('VB') > -1:
+		return wn.VERB
+	if pos.find('NN') > -1:
+		return wn.NOUN
+	if pos.find('JJ') > -1:
+		return wn.ADJ
+	if pos.find('RB'):
+		return wn.ADV
+	return None
 
 def find_longest_overlap(s1, s2):
 	sm = dl.SequenceMatcher(None, s1, s2)
@@ -57,12 +73,18 @@ def symmetric_closure(relations):
 def relatedness(s1, s2, relpairs):
 	return sum([score(get_extended_gloss(s1, r1), get_extended_gloss(s2, r2)) for (r1, r2) in relpairs])
 
-def get_context(target, sentence, n = 5):
-	begin = max(0, sentence.index(target) - n)
-	end = min(len(sentence), sentence.index(target) + n + 1)
-	return sentence[begin : end]
+def get_context_window(target, sentence, n = 5, tagged = True):
+	if tagged == True:
+		_sentence = [word for (word, pos) in sentence]
+		begin = max(0, _sentence.index(target) - n)
+		end = min(len(_sentence), _sentence.index(target) + n + 1)
+		return sentence[begin : end]
+	else:
+		begin = max(0, sentence.index(target) - n)
+		end = min(len(sentence), sentence.index(target) + n + 1)
+		return sentence[begin : end]
 
-def get_sense_scores(target, context):
+def get_sense_scores(target, context, tagged = True):
 	scores = []
 	for target_sense in wn.synsets(target):
 		sk = 0
@@ -71,14 +93,36 @@ def get_sense_scores(target, context):
 				for word_sense in wn.synsets(word):
 					sk += relatedness(target_sense, word_sense, relpairs)
 		scores.append(sk)
-	return scores
+
+def get_sense0(target, context, tagged = True):
+	scores = []
+	target_pos = [pos for (word, pos) in context if word == target][0]
+	synsets = wn.synsets(target, pos = tagger_to_wn_pos(target_pos))
+	for target_sense in synsets:
+		sk = 0
+		for word, pos in context:
+			if word != target:
+				for word_sense in wn.synsets(word, pos = tagger_to_wn_pos(pos)):
+					sk += relatedness(target_sense, word_sense, relpairs)
+		scores.append(sk)
+	return synsets[scores.index(max(scores))].definition()
 
 def get_sense(target, context, token_input = True):
 	synsets = wn.synsets(target)
+
 	if token_input:
 		context = process_tokens(context)
 	else:
 		context = process_text(context)
 	print("processed context: ", context)
-	sense_scores = get_sense_scores(target, context)
+	sense_scores = get_sense_scores(target, get_context_window(target, context))
 	return synsets[sense_scores.index(max(sense_scores))].definition()
+
+def get_sense2(target, text):
+	target = normalize(target)
+	context = postagger.tag(word_tokenize(text))
+	context = [(normalize(word), pos) for (word, pos) in context]
+	context = [(word, pos) for (word, pos) in context if word_filter(word)]
+	context = get_context_window(target, context)
+	print(context)
+	return get_sense0(target, context)
