@@ -3,6 +3,7 @@ from nltk.corpus import wordnet as wn
 from process import *
 from nltk import word_tokenize
 from nltk.tag import StanfordPOSTagger
+import sense_mapping as sm
 
 postagger = StanfordPOSTagger("stanford-postagger-2018-10-16/models/english-bidirectional-distsim.tagger",
 "stanford-postagger-2018-10-16/stanford-postagger-3.9.2.jar" )
@@ -85,45 +86,32 @@ def get_context_window(target, sentence, n = 5, tagged = True):
 		end = min(len(sentence), sentence.index(target) + n + 1)
 		return sentence[begin : end]
 
-def get_sense_scores(target, context, tagged = True):
+"""
+Assumes context is tagged, i.e a list of (word, pos) pairs.
+"""
+def get_sense(target, tagged_context, use_test_synsets = False):
 	scores = []
-	for target_sense in wn.synsets(target):
-		sk = 0
-		for word in context:
-			if word != target:
-				for word_sense in wn.synsets(word):
-					sk += relatedness(target_sense, word_sense, relpairs)
-		scores.append(sk)
-
-def get_sense0(target, context, tagged = True):
-	scores = []
-	target_pos = [pos for (word, pos) in context if word == target][0]
+	target_pos = [pos for (word, pos) in tagged_context if word == target][0]
 	synsets = wn.synsets(target, pos = tagger_to_wn_pos(target_pos))
+	if use_test_synsets:
+		synsets = [s for s in synsets if sm.map_synset_to_sense(target, s) != None]
 	for target_sense in synsets:
 		sk = 0
-		for word, pos in context:
+		for word, pos in tagged_context:
 			if word != target:
 				for word_sense in wn.synsets(word, pos = tagger_to_wn_pos(pos)):
 					sk += relatedness(target_sense, word_sense, relpairs)
 		scores.append(sk)
-	return synsets[scores.index(max(scores))].definition()
+	if len(scores) > 0:
+		return synsets[scores.index(max(scores))]
+	return None
 
-def get_sense(target, context, token_input = True):
-	synsets = wn.synsets(target)
 
-	if token_input:
-		context = process_tokens(context)
-	else:
-		context = process_text(context)
-	print("processed context: ", context)
-	sense_scores = get_sense_scores(target, get_context_window(target, context))
-	return synsets[sense_scores.index(max(sense_scores))].definition()
-
-def get_sense2(target, text):
+def get_sense_tagged(target, context):
 	target = normalize(target)
-	context = postagger.tag(word_tokenize(text))
+	context = postagger.tag(context)
 	context = [(normalize(word), pos) for (word, pos) in context]
 	context = [(word, pos) for (word, pos) in context if word_filter(word)]
 	context = get_context_window(target, context)
-	print(context)
-	return get_sense0(target, context)
+	#print(context)
+	return get_sense(target, context, use_test_synsets = True)
