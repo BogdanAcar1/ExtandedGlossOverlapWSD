@@ -18,7 +18,16 @@ MERO = "meronymy"  #Y is a meronym of X if Y is a part of X (window is a meronym
 GLOSS = "gloss"    #xA's gloss is A's definition
 EXAMPLE = "example"
 
-relpairs = [(GLOSS, GLOSS), (HYPE, HYPE), (HYPO, HYPO), (HYPE, GLOSS), (GLOSS, HYPE)]
+def symmetric_closure(relations):
+	closure = []
+	for (r1, r2) in relations:
+		if (r1, r2) not in closure:
+			closure.append((r1, r2))
+		if (r2, r1) not in closure:
+			closure.append((r2, r1))
+	return closure
+#relpairs = [(GLOSS, GLOSS), (HYPE, HYPE), (HYPO, HYPO), (HYPE, GLOSS), (GLOSS, HYPE)]
+relpairs = symmetric_closure([(HYPO, MERO), (HYPO, HYPO), (GLOSS, MERO), (GLOSS, GLOSS), (EXAMPLE, MERO)])
 
 def find_longest_overlap(s1, s2):
 	sm = dl.SequenceMatcher(None, s1, s2)
@@ -55,19 +64,10 @@ def get_extended_gloss(synset, relation):
 
 	return process_text(" ".join([s.definition() for s in synsets]))
 
-def symmetric_closure(relations):
-	closure = []
-	for (r1, r2) in relations:
-		if (r1, r2) not in closure:
-			closure.append((r1, r2))
-		if (r2, r1) not in closure:
-			closure.append((r2, r1))
-	return closure
-
 def relatedness(s1, s2, relpairs):
 	return sum([score(get_extended_gloss(s1, r1), get_extended_gloss(s2, r2)) for (r1, r2) in relpairs])
 
-def get_context_window(target, tagged_context, n = 5, tagged = True):
+def get_context_window(target, tagged_context, n = 2, tagged = True):
 	word_context = [word for (word, pos) in tagged_context]
 	begin = max(0, word_context.index(target) - n)
 	end = min(len(word_context), word_context.index(target) + n + 1)
@@ -95,23 +95,30 @@ def get_sense(target, tagged_context):
 	sense_synset = run_ego(target, get_context_window(target, tagged_context), use_test_synsets = True)
 	return sense_synset
 
-if __name__ == '__main__':
-	targets = ["line", "hard", "serve"]
+def test_hard_line_serve(only_senses = None):
+	targets = ["line"]#, "hard", "serve"]
 	for target in targets:
 		with open(f"{target}.log", "w") as log:
 			all, ok = 0, 0
 			for (i, it) in enumerate(se.instances(f"{target}.pos")):
-				try:
-					s = get_sense(target, it.context)
-					p_sense = sm.map_synset_to_sense(target, s)
-					a_sense = it.senses[0]
-					log.write(f"{i}. predicted: {p_sense}, actual: {a_sense}\n")
-					if p_sense == a_sense:
-						ok += 1
-					all += 1
-					if i % 100 == 0:
-						log.write(str(ok / all) + "\n")
-				except Exception as e:
-					print(e)
-					log.write(str(e))
+				if (it.senses[0] in only_senses):
+					try:
+						s = get_sense(target, it.context)
+						p_sense = sm.map_synset_to_sense(target, s)
+						a_sense = it.senses[0]
+						print(f"{i}. predicted: {p_sense}, actual: {a_sense}\n")
+						log.write(f"{i}. predicted: {p_sense}, actual: {a_sense}\n")
+						if p_sense == a_sense:
+							ok += 1
+						all += 1
+						if i % 20 == 0:
+							print(str(ok / all) + "\n")
+							log.write(str(ok / all) + "\n")
+					except Exception as e:
+						print(e)
+						print(str(ok / all) + "\n")
+						log.write(str(e))
 			log.write(str(ok / all) + "\n")
+
+if __name__ == '__main__':
+	test_hard_line_serve(only_senses = ["phone", "product"])
