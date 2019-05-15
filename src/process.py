@@ -30,8 +30,8 @@ def word_filter(word):
 	return word not in stop_words and word.isalpha()
 
 def process_text(gloss):
-	words = gloss.split(" ") # find better way to tokenize
-	words = [normalize(word) for word in words]
+	words = gloss.split() # find better way to tokenize
+	words = [normalize(word.translate(str.maketrans('', '', string.punctuation))) for word in words]
 	words = [word for word in filter(word_filter, words)]
 	return words
 

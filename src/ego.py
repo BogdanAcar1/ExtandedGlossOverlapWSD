@@ -26,8 +26,9 @@ def symmetric_closure(relations):
 		if (r2, r1) not in closure:
 			closure.append((r2, r1))
 	return closure
-#relpairs = [(GLOSS, GLOSS), (HYPE, HYPE), (HYPO, HYPO), (HYPE, GLOSS), (GLOSS, HYPE)]
-relpairs = symmetric_closure([(HYPO, MERO), (HYPO, HYPO), (GLOSS, MERO), (GLOSS, GLOSS), (EXAMPLE, MERO)])
+
+relpairs = [(GLOSS, GLOSS), (HYPE, HYPE), (HYPO, HYPO), (HYPE, GLOSS), (GLOSS, HYPE)]
+#relpairs = symmetric_closure([(HYPO, MERO), (HYPO, HYPO), (GLOSS, MERO), (GLOSS, GLOSS), (EXAMPLE, MERO)])
 
 def find_longest_overlap(s1, s2):
 	sm = dl.SequenceMatcher(None, s1, s2)
@@ -95,30 +96,36 @@ def get_sense(target, tagged_context):
 	sense_synset = run_ego(target, get_context_window(target, tagged_context), use_test_synsets = True)
 	return sense_synset
 
+def get_sense_from_text(target, text_context):
+	text_context = process_text(text_context)
+	tagged_context = postagger.tag(text_context)
+	print(tagged_context)
+	sense = run_ego(target, tagged_context)
+	return sense.definition()
+
 def test_hard_line_serve(only_senses = None):
 	targets = ["line"]#, "hard", "serve"]
 	for target in targets:
 		with open(f"{target}.log", "w") as log:
 			all, ok = 0, 0
 			for (i, it) in enumerate(se.instances(f"{target}.pos")):
-				if (it.senses[0] in only_senses):
-					try:
-						s = get_sense(target, it.context)
-						p_sense = sm.map_synset_to_sense(target, s)
-						a_sense = it.senses[0]
-						print(f"{i}. predicted: {p_sense}, actual: {a_sense}\n")
-						log.write(f"{i}. predicted: {p_sense}, actual: {a_sense}\n")
-						if p_sense == a_sense:
-							ok += 1
-						all += 1
-						if i % 20 == 0:
-							print(str(ok / all) + "\n")
-							log.write(str(ok / all) + "\n")
-					except Exception as e:
-						print(e)
+				try:
+					s = get_sense(target, it.context)
+					p_sense = sm.map_synset_to_sense(target, s)
+					a_sense = it.senses[0]
+					print(f"{i}. predicted: {p_sense}, actual: {a_sense}\n")
+					log.write(f"{i}. predicted: {p_sense}, actual: {a_sense}\n")
+					if p_sense == a_sense:
+						ok += 1
+					all += 1
+					if i % 100 == 0:
 						print(str(ok / all) + "\n")
-						log.write(str(e))
+						log.write(str(ok / all) + "\n")
+				except Exception as e:
+					print(e)
+					print(str(ok / all) + "\n")
+					log.write(str(e))
 			log.write(str(ok / all) + "\n")
 
 if __name__ == '__main__':
-	test_hard_line_serve(only_senses = ["phone", "product"])
+	test_hard_line_serve()

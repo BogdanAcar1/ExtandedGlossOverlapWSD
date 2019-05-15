@@ -5,7 +5,6 @@ from tests import tests
 from nltk.corpus import senseval
 from corpus import *
 import sense_mapping as sm
-import ego2
 
 def test_wsd(target, start = 1000, n = 4000):
 	correct, all = 0, 0
@@ -21,4 +20,8 @@ def test_wsd(target, start = 1000, n = 4000):
 	return correct / all
 
 if __name__ == '__main__':
-	print(test_wsd("hard", start = 0, n = 10))
+	#print(test_wsd("hard", start = 0, n = 10))
+	target = "line"
+	for text in tests[target]:
+		print(text)
+		print(get_sense_from_text(target, text))
