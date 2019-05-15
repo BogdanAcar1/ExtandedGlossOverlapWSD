@@ -5,10 +5,11 @@ from tests import tests
 from nltk.corpus import senseval
 from corpus import *
 import sense_mapping as sm
+import ego2
 
 def test_wsd(target, start = 1000, n = 4000):
 	correct, all = 0, 0
-	corpus = get_test_corpus("line", start = start, n = n)
+	corpus = get_test_corpus(target, start = start, n = n)
 	for context, act_sense in corpus:
 		pred_synset = get_sense_tagged(target, context)
 		pred_sense = sm.map_synset_to_sense(target, pred_synset)
@@ -19,6 +20,5 @@ def test_wsd(target, start = 1000, n = 4000):
 		print(correct / all)
 	return correct / all
 
-
 if __name__ == '__main__':
-	print(test_wsd("line", start = 2000, n = 1000))
+	print(test_wsd("hard", start = 0, n = 10))
