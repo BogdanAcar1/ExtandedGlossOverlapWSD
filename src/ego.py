@@ -1,6 +1,15 @@
 import difflib as dl
 from nltk.corpus import wordnet as wn
+from nltk.corpus import senseval as se
 from process import *
+from nltk import word_tokenize
+from nltk.tag import StanfordPOSTagger
+import sense_mapping as sm
+from process import tagger_to_wn_pos
+
+
+postagger = StanfordPOSTagger("stanford-postagger-2018-10-16/models/english-bidirectional-distsim.tagger",
+"stanford-postagger-2018-10-16/stanford-postagger-3.9.2.jar" )
 
 HYPE = "hypernymy" #Y is a hypernym of X if every X is a (kind of) Y (canine is a hypernym of dog)
 HYPO = "hyponymy"  #Y is a hyponym of X if every Y is a (kind of) X (dog is a hyponym of canine)
@@ -8,8 +17,21 @@ HOLO = "holonymy"  #Y is a holonym of X if X is a part of Y (building is a holon
 MERO = "meronymy"  #Y is a meronym of X if Y is a part of X (window is a meronym of building)
 GLOSS = "gloss"    #xA's gloss is A's definition
 EXAMPLE = "example"
+ALSO = "also"
+ATTR = "attr"
 
-relpairs = [(GLOSS, GLOSS), (HYPE, HYPE), (HYPO, HYPO), (HYPE, GLOSS), (GLOSS, HYPE)]
+def symmetric_closure(relations):
+	closure = []
+	for (r1, r2) in relations:
+		if (r1, r2) not in closure:
+			closure.append((r1, r2))
+		if (r2, r1) not in closure:
+			closure.append((r2, r1))
+	return closure
+
+relpairs1 = symmetric_closure([(EXAMPLE, EXAMPLE), (EXAMPLE, HYPE), (HYPO, HYPO)]) # verbs
+relpairs2 = symmetric_closure([(HYPO, MERO), (HYPO, HYPO), (GLOSS, MERO), (GLOSS, GLOSS), (EXAMPLE, MERO)]) # subst
+relpairs = symmetric_closure([(ALSO,GLOSS),(ATTR,GLOSS),(GLOSS,GLOSS)]) # adj
 
 def find_longest_overlap(s1, s2):
 	sm = dl.SequenceMatcher(None, s1, s2)
@@ -40,45 +62,77 @@ def get_extended_gloss(synset, relation):
 		synsets = synset.member_meronyms() + synset.part_meronyms() + synset.substance_meronyms()
 	elif relation == GLOSS:
 		synsets = [synset]
-	#elif relation == EXAMPLE:
-	#	synsets = synset.examples()
+	elif relation == ATTR:
+		synsets = synset.attributes()
+	elif relation == ALSO:
+		synsets = synset.also_sees()
+	elif relation == EXAMPLE:
+		#print(synset.examples())
+		return process_text(" ".join(synset.examples()))
 
 	return process_text(" ".join([s.definition() for s in synsets]))
-
-def symmetric_closure(relations):
-	closure = []
-	for (r1, r2) in relations:
-		if (r1, r2) not in closure:
-			closure.append((r1, r2))
-		if (r2, r1) not in closure:
-			closure.append((r2, r1))
-	return closure
 
 def relatedness(s1, s2, relpairs):
 	return sum([score(get_extended_gloss(s1, r1), get_extended_gloss(s2, r2)) for (r1, r2) in relpairs])
 
-def get_context(target, sentence, n = 5):
-	begin = max(0, sentence.index(target) - n)
-	end = min(len(sentence), sentence.index(target) + n + 1)
-	return sentence[begin : end]
+def get_context_window(target, tagged_context, n = 2, tagged = True):
+	word_context = [word for (word, pos) in tagged_context]
+	begin = max(0, word_context.index(target) - n)
+	end = min(len(word_context), word_context.index(target) + n + 1)
+	return tagged_context[begin : end]
 
-def get_sense_scores(target, context):
+def run_ego(target, tagged_context, use_test_synsets = False):
 	scores = []
-	for target_sense in wn.synsets(target):
+	target_pos = [pos for (word, pos) in tagged_context if word == target][0]
+	synsets = wn.synsets(target, pos = tagger_to_wn_pos(target_pos))
+	if use_test_synsets:
+		synsets = [s for s in synsets if sm.map_synset_to_sense(target, s) != None]
+	for target_sense in synsets:
 		sk = 0
-		for word in context:
+		for word, pos in tagged_context:
 			if word != target:
-				for word_sense in wn.synsets(word):
+				for word_sense in wn.synsets(word, pos = tagger_to_wn_pos(pos)):
 					sk += relatedness(target_sense, word_sense, relpairs)
 		scores.append(sk)
-	return scores
+	if len(scores) > 0:
+		return synsets[scores.index(max(scores))]
+	return None
 
-def get_sense(target, context, token_input = True):
-	synsets = wn.synsets(target)
-	if token_input:
-		context = process_tokens(context)
-	else:
-		context = process_text(context)
-	print("processed context: ", context)
-	sense_scores = get_sense_scores(target, context)
-	return synsets[sense_scores.index(max(sense_scores))].definition()
+def get_sense(target, tagged_context):
+	tagged_context = process_tagged_tokens(tagged_context)
+	sense_synset = run_ego(target, get_context_window(target, tagged_context), use_test_synsets = True)
+	return sense_synset
+
+def get_sense_from_text(target, text_context):
+	text_context = process_text(text_context)
+	tagged_context = postagger.tag(text_context)
+	print(tagged_context)
+	sense = run_ego(target, tagged_context)
+	return sense.definition()
+
+def test_hard_line_serve(only_senses = None):
+	targets = ["line"]#, "hard", "serve"]
+	for target in targets:
+		with open(f"{target}.log", "w") as log:
+			all, ok = 0, 0
+			for (i, it) in enumerate(se.instances(f"{target}.pos")):
+				try:
+					s = get_sense(target, it.context)
+					p_sense = sm.map_synset_to_sense(target, s)
+					a_sense = it.senses[0]
+					print(f"{i}. predicted: {p_sense}, actual: {a_sense}\n")
+					log.write(f"{i}. predicted: {p_sense}, actual: {a_sense}\n")
+					if p_sense == a_sense:
+						ok += 1
+					all += 1
+					if i % 100 == 0:
+						print(str(ok / all) + "\n")
+						log.write(str(ok / all) + "\n")
+				except Exception as e:
+					print(e)
+					print(str(ok / all) + "\n")
+					log.write(str(e))
+			log.write(str(ok / all) + "\n")
+
+if __name__ == '__main__':
+	test_hard_line_serve()

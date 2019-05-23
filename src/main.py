@@ -1,35 +1,27 @@
 from nltk.corpus import wordnet as wn
-from nltk.tag import StanfordPOSTagger
 from ego import *
 from process import *
 from tests import tests
 from nltk.corpus import senseval
+from corpus import *
+import sense_mapping as sm
 
-postagger = StanfordPOSTagger("stanford-postagger-2018-10-16/models/english-bidirectional-distsim.tagger",
-							  "stanford-postagger-2018-10-16/stanford-postagger-3.9.2.jar" )
-
-def print_wn_sense(word):
-	print(f"Wordnet defintions of {word}:")
-	print("-" * 50)
-	for s in wn.synsets(word):
-		print(s.definition())
-		print("-" * 50)
-
-def test_sense(word):
-	print_wn_sense(word)
-
-	target = word
-	for test in tests[target]:
-		print(test, f"-> sense of {target}: ",  get_sense(target, process_text(test)))
-
-def get_senseval_contexts(word, n = 10):
-	contexts = []
-	for instance in senseval.instances(f'{word}.pos')[:n]:
-		try:
-			contexts.append(([word for (word, pos) in instance.context], instance.senses))
-		except:
-			pass
-	return contexts
+def test_wsd(target, start = 1000, n = 4000):
+	correct, all = 0, 0
+	corpus = get_test_corpus(target, start = start, n = n)
+	for context, act_sense in corpus:
+		pred_synset = get_sense_tagged(target, context)
+		pred_sense = sm.map_synset_to_sense(target, pred_synset)
+		print(pred_sense, act_sense)
+		if act_sense == pred_sense:
+			correct += 1
+		all += 1
+		print(correct / all)
+	return correct / all
 
 if __name__ == '__main__':
-	test_sense("mole")
+	#print(test_wsd("hard", start = 0, n = 10))
+	target = "line"
+	for text in tests[target]:
+		print(text)
+		print(get_sense_from_text(target, text))
