@@ -17,6 +17,8 @@ HOLO = "holonymy"  #Y is a holonym of X if X is a part of Y (building is a holon
 MERO = "meronymy"  #Y is a meronym of X if Y is a part of X (window is a meronym of building)
 GLOSS = "gloss"    #xA's gloss is A's definition
 EXAMPLE = "example"
+ALSO = "also"
+ATTR = "attr"
 
 def symmetric_closure(relations):
 	closure = []
@@ -27,8 +29,9 @@ def symmetric_closure(relations):
 			closure.append((r2, r1))
 	return closure
 
-relpairs = [(GLOSS, GLOSS), (HYPE, HYPE), (HYPO, HYPO), (HYPE, GLOSS), (GLOSS, HYPE)]
-#relpairs = symmetric_closure([(HYPO, MERO), (HYPO, HYPO), (GLOSS, MERO), (GLOSS, GLOSS), (EXAMPLE, MERO)])
+relpairs1 = symmetric_closure([(EXAMPLE, EXAMPLE), (EXAMPLE, HYPE), (HYPO, HYPO)]) # verbs
+relpairs2 = symmetric_closure([(HYPO, MERO), (HYPO, HYPO), (GLOSS, MERO), (GLOSS, GLOSS), (EXAMPLE, MERO)]) # subst
+relpairs = symmetric_closure([(ALSO,GLOSS),(ATTR,GLOSS),(GLOSS,GLOSS)]) # adj
 
 def find_longest_overlap(s1, s2):
 	sm = dl.SequenceMatcher(None, s1, s2)
@@ -59,6 +62,10 @@ def get_extended_gloss(synset, relation):
 		synsets = synset.member_meronyms() + synset.part_meronyms() + synset.substance_meronyms()
 	elif relation == GLOSS:
 		synsets = [synset]
+	elif relation == ATTR:
+		synsets = synset.attributes()
+	elif relation == ALSO:
+		synsets = synset.also_sees()
 	elif relation == EXAMPLE:
 		#print(synset.examples())
 		return process_text(" ".join(synset.examples()))
